@@ -196,3 +196,31 @@ test('forecast diagnostics render the corrected evaluation calibration bins', as
     assert.match(state.element('forecast-audit-content').innerHTML, /<td>141<\/td>/);
     assert.match(state.element('forecast-audit-content').innerHTML, /73\.0%/);
 });
+
+test('forecast dates stay on the selected calendar day in UTC+14', async () => {
+    const state = harness('forecast-ui.js', url => Promise.resolve(response(url === '/api/forecast-status'
+        ? {available:true, modelVersion:'test', supportedWeightClasses:['Lightweight'], forecastDateRange:{max:'2099-12-31'}}
+        : url === '/api/evaluation' ? {} : {
+            status:'forecast', fighter1:{name:'A',probability:.6,validStatBouts:10},
+            fighter2:{name:'B',probability:.4,validStatBouts:8}, modelVersion:'test',
+            context:{eventDate:'2099-01-01',weightClass:'Lightweight',scheduledRounds:3,isTitleBout:false},
+            provenance:{trainingThrough:'2022-12-31',calibrationThrough:'2024-12-31',researchDataThrough:'2026-10-31'},
+        })));
+    vm.runInContext(`Date = class extends Date {
+        toLocaleDateString(locale, options) {
+            return super.toLocaleDateString('en-US', {timeZone:'Pacific/Kiritimati', ...options});
+        }
+    };`, state.context);
+    await flush();
+    state.dispatch('versus:evidence', {fighters:[
+        {fighterId:'a',name:'A',latestBout:{weightClass:'Lightweight'}},
+        {fighterId:'b',name:'B',latestBout:{weightClass:'Lightweight'}},
+    ]});
+    state.element('forecast-date').value = '2099-01-01';
+    state.element('forecast-division').value = 'Lightweight';
+    state.element('forecast-rounds').value = '3';
+    state.element('forecast-title').value = 'no';
+    await state.element('forecast-form').listeners.get('submit')({preventDefault() {}});
+    assert.match(state.element('forecast-result').innerHTML, /Jan 1, 2099/);
+    assert.doesNotMatch(state.element('forecast-result').innerHTML, /Jan 2, 2099/);
+});
