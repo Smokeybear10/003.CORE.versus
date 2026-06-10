@@ -16,7 +16,7 @@ import urllib.parse
 import urllib.request
 
 
-REPO = "Smokeybear10/802-DATA.MMA"
+REPO = "Smokeybear10/801.DATA.mma"
 TAG = "versus-runtime-2026-11-05-v1"
 ASSET = f"{TAG}.tar.gz"
 ARCHIVE_SHA256 = "f20cfa3a8afee060dd95cdb86c41d4f43843e2e4bae597529b5d99396370e6e2"

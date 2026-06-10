@@ -8,11 +8,11 @@ Compare UFC fighters by recent form, fight statistics, and opponent history.
 
 ## Quick Start
 
-Running locally requires access to the private model and data release in `Smokeybear10/802-DATA.MMA`. The live site works without an account.
+Running locally requires access to the private model and data release in `Smokeybear10/801.DATA.mma`. The live site works without an account.
 
 ```bash
-git clone https://github.com/Smokeybear10/005.CORE.versus.git
-cd 005.CORE.versus
+git clone https://github.com/Smokeybear10/003.CORE.versus.git
+cd 003.CORE.versus
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
