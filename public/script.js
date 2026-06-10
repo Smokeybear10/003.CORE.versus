@@ -172,6 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
         input.addEventListener("input", () => {
+            pendingRestore = null;
             matchupRevision += 1;
             showError("");
             statusEl.textContent = "";

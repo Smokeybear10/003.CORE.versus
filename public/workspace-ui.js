@@ -9,6 +9,7 @@ if (navigation) {
     let evidenceReady = false;
     let researchFailed = false;
     let editingMatchup = false;
+    let restoringMatchup = true;
     let currentView = readView();
 
     function hashTarget() {
@@ -23,9 +24,10 @@ if (navigation) {
 
     function matchupURL(keepHash = false) {
         const url = new URL(window.location.pathname, window.location.origin);
-        if (selected) {
-            url.searchParams.set('fighter1', selected.fighter1);
-            url.searchParams.set('fighter2', selected.fighter2);
+        const pending = restoringMatchup ? new URL(window.location.href).searchParams : null;
+        for (const key of ['fighter1', 'fighter2']) {
+            const name = selected?.[key] ?? pending?.get(key);
+            if (name) url.searchParams.set(key, name);
         }
         url.searchParams.set('view', currentView);
         if (keepHash) url.hash = window.location.hash;
@@ -103,6 +105,7 @@ if (navigation) {
     });
 
     window.addEventListener('versus:matchup-change', event => {
+        restoringMatchup = false;
         const hadMatchup = Boolean(selected);
         selected = null;
         evidenceReady = false;
@@ -116,6 +119,7 @@ if (navigation) {
         }
     });
     window.addEventListener('versus:research-start', event => {
+        restoringMatchup = false;
         selected = {fighter1:event.detail.fighter1, fighter2:event.detail.fighter2};
         evidenceReady = false;
         researchFailed = false;
@@ -150,7 +154,10 @@ if (navigation) {
         const params = new URL(window.location.href).searchParams;
         setView(readView());
         if (selected?.fighter1 === params.get('fighter1') && selected?.fighter2 === params.get('fighter2')) revealHash();
-        else window.dispatchEvent(new CustomEvent('versus:restore-matchup'));
+        else {
+            restoringMatchup = true;
+            window.dispatchEvent(new CustomEvent('versus:restore-matchup'));
+        }
     });
 
     $('share-matchup').addEventListener('click', async () => {

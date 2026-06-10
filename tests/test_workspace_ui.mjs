@@ -96,9 +96,8 @@ function setup(url = 'http://localhost/predict.html', {picker = false, clipboard
         if (clipboardFails) throw new Error('Clipboard denied');
         copied.push(value);
     }}};
-    let deliverFighters;
-    const fighterResponse = new Promise(resolve => { deliverFighters = resolve; });
-    const fetch = path => path === '/api/fighters' ? fighterResponse : Promise.resolve({ok:true,json:async () => path === '/api/odds'
+    const fighterRequests = [];
+    const fetch = path => path === '/api/fighters' ? new Promise(resolve => fighterRequests.push(resolve)) : Promise.resolve({ok:true,json:async () => path === '/api/odds'
         ? {configured:true,events:odds,fetchedAt:new Date().toISOString()}
         : {models:{},model:{ready:true},odds:{configured:true}}});
     let journal = [];
@@ -122,7 +121,8 @@ function setup(url = 'http://localhost/predict.html', {picker = false, clipboard
             Object.defineProperty(event, 'target', {value:button});
             elements.get('feed-results').dispatchEvent(event);
         },
-        loaded:names => deliverFighters({ok:true,json:async () => ({fighters:names})})};
+        loaded:names => fighterRequests.shift()({ok:true,json:async () => ({fighters:names})}),
+        failLookup:() => fighterRequests.shift()({ok:false,json:async () => ({error:'Lookup unavailable'})})};
 }
 
 test('shared matchup waits for fighter lookup, canonicalizes names and preserves its view', async () => {
@@ -153,6 +153,68 @@ test('unknown shared fighters never start research or enable sharing', async () 
     assert.equal(starts.length, 0);
     assert.equal(page.elements.get('share-matchup').disabled, true);
     assert.match(page.elements.get('form-error').textContent, /Choose a fighter/);
+});
+
+test('changing tabs while fighter lookup loads preserves the shared matchup', async () => {
+    const page = setup('http://localhost/research?fighter1=alpha&fighter2=bEtA&view=report', {picker:true});
+    const starts = [];
+    page.window.addEventListener('versus:research-start', event => starts.push(event.detail));
+    page.tabs[1].dispatchEvent(new Event('click'));
+    assert.equal(page.window.location.searchParams.get('fighter1'), 'alpha');
+    assert.equal(page.window.location.searchParams.get('fighter2'), 'bEtA');
+    assert.equal(page.elements.get('share-matchup').disabled, true);
+    page.loaded(['Alpha','Beta']);
+    await tick();
+    assert.equal(starts.length, 1);
+    assert.equal(starts[0].fighter1, 'Alpha');
+    assert.equal(starts[0].fighter2, 'Beta');
+    assert.equal(page.panels[1].hidden, false);
+    assert.equal(page.window.location.searchParams.get('fighter1'), 'Alpha');
+});
+
+test('changing tabs while restoring history waits for the current shared pair', async () => {
+    const page = setup('http://localhost/research?view=report', {picker:true});
+    page.window.location = new URL('http://localhost/research?fighter1=Alpha&fighter2=Gamma&view=prices');
+    page.window.dispatchEvent(new Event('popstate'));
+    page.tabs[1].dispatchEvent(new Event('click'));
+    page.loaded(['Alpha','Beta','Gamma']);
+    await tick();
+    assert.equal(page.elements.get('fighter2').value, 'Gamma');
+    assert.equal(page.elements.get('workspace-selection').textContent, 'Alpha vs Gamma');
+    assert.equal(page.panels[1].hidden, false);
+});
+
+test('retrying fighter lookup keeps names entered while the service was unavailable', async () => {
+    const page = setup('http://localhost/research', {picker:true});
+    const starts = [];
+    page.window.addEventListener('versus:research-start', event => starts.push(event.detail));
+    page.failLookup();
+    await tick();
+    assert.equal(page.elements.get('retry-fighters').hidden, false);
+    for (const [id, name] of [['fighter1','Alpha'], ['fighter2','Beta']]) {
+        page.elements.get(id).value = name;
+        page.elements.get(id).dispatchEvent(new Event('input'));
+    }
+    page.elements.get('retry-fighters').dispatchEvent(new Event('click'));
+    page.loaded(['Alpha','Beta']);
+    await tick();
+    assert.equal(page.elements.get('fighter1').value, 'Alpha');
+    assert.equal(page.elements.get('fighter2').value, 'Beta');
+    assert.equal(page.elements.get('predict-btn').disabled, false);
+    assert.equal(starts.length, 0);
+    page.elements.get('matchup-form').requestSubmit();
+    assert.equal(starts.length, 1);
+});
+
+test('retrying fighter lookup still restores an untouched shared matchup', async () => {
+    const page = setup('http://localhost/research?fighter1=Alpha&fighter2=Beta&view=prices', {picker:true});
+    page.failLookup();
+    await tick();
+    page.elements.get('retry-fighters').dispatchEvent(new Event('click'));
+    page.loaded(['Alpha','Beta']);
+    await tick();
+    assert.equal(page.elements.get('workspace-selection').textContent, 'Alpha vs Beta');
+    assert.equal(page.panels[2].hidden, false);
 });
 
 test('tab keys move focus and active panel without intercepting normal Tab', () => {
