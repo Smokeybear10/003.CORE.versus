@@ -1,4 +1,4 @@
-# V3RSUS | MMA Predictive Analytics
+# Versus | MMA Predictive Analytics
 
 **Live demo: [v3rsus.vercel.app](https://v3rsus.vercel.app/)**
 
@@ -26,7 +26,7 @@ Data is sourced from a separate repo: [802-DATA.MMA](https://github.com/Smokeybe
 
 ## What It Does
 
-Pick two fighters. V3RSUS pulls their career-wide stats, computes the gap between them across dozens of dimensions, and runs an ensemble of classifiers to predict the winner. Each prediction includes:
+Pick two fighters. Versus pulls their career-wide stats, computes the gap between them across dozens of dimensions, and runs an ensemble of classifiers to predict the winner. Each prediction includes:
 
 - Win probability with per-model breakdown
 - Top factors driving the call, ranked by impact
